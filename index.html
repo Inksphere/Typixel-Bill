@@ -229,6 +229,26 @@
             padding: 30px;
             background-color: var(--white);
             min-height: 600px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .invoice-watermark {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            font-size: 4rem;
+            color: var(--primary-green);
+            opacity: 0.1;
+            transform: rotate(-45deg);
+            pointer-events: none;
+            z-index: 1;
+            font-weight: bold;
+        }
+
+        .invoice-content {
+            position: relative;
+            z-index: 2;
         }
 
         .invoice-header {
@@ -322,6 +342,36 @@
             font-size: 0.9rem;
         }
 
+        .payment-info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: var(--light-grey);
+            border-radius: 4px;
+        }
+
+        .payment-info h4 {
+            margin-bottom: 10px;
+            color: var(--dark-green);
+        }
+
+        .upi-link {
+            color: var(--dark-green);
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s;
+        }
+
+        .upi-link:hover {
+            text-decoration: underline;
+        }
+
+        .upi-link i {
+            font-size: 1.2rem;
+        }
+
         footer {
             background-color: var(--dark-grey);
             color: var(--white);
@@ -391,7 +441,7 @@
                     </div>
                     <div class="form-group">
                         <label for="companyUPI">Send to</label>
-                        <input type="text" id="companyPhone" value="9072891142@fam" placeholder="UPI">
+                        <input type="text" id="companyUPI" value="9072891142@fam" placeholder="UPI">
                     </div>
                 </div>
                 
@@ -533,6 +583,7 @@
             const companyName = document.getElementById('companyName').value || 'Typixel Designs';
             const companyAddress = document.getElementById('companyAddress').value || 'Kotakkal, Kerala';
             const companyPhone = document.getElementById('companyPhone').value || '+919072891142';
+            const companyUPI = document.getElementById('companyUPI').value || '';
             
             const invoiceNumber = document.getElementById('invoiceNumber').value || 'BILL-001';
             const invoiceDate = document.getElementById('invoiceDate').value || '';
@@ -565,48 +616,68 @@
             const formattedInvoiceDate = invoiceDate ? new Date(invoiceDate).toLocaleDateString() : '';
             const formattedDueDate = dueDate ? new Date(dueDate).toLocaleDateString() : '';
             
+            // Create UPI payment URL
+            const upiPaymentUrl = companyUPI ? `upi://pay?pa=${companyUPI}&pn=${encodeURIComponent(companyName)}&am=${subtotal.toFixed(2)}&cu=INR` : '';
+            
             // Update preview HTML
             preview.innerHTML = `
-                <div class="invoice-header">
-                    <div class="invoice-title">SERVICE BILL</div>
-                    <div class="invoice-details">
-                        <div><strong>Bill Number:</strong> ${invoiceNumber}</div>
-                        <div><strong>Date:</strong> ${formattedInvoiceDate}</div>
-                        <div><strong>Due Date:</strong> ${formattedDueDate}</div>
+                <div class="invoice-watermark">@typixel</div>
+                <div class="invoice-content">
+                    <div class="invoice-header">
+                        <div class="invoice-title">SERVICE BILL</div>
+                        <div class="invoice-details">
+                            <div><strong>Bill Number:</strong> ${invoiceNumber}</div>
+                            <div><strong>Date:</strong> ${formattedInvoiceDate}</div>
+                            <div><strong>Due Date:</strong> ${formattedDueDate}</div>
+                        </div>
                     </div>
-                </div>
-                
-                <div class="invoice-company">
-                    <h3>${companyName}</h3>
-                    <div>${companyAddress}</div>
-                    <div>${companyPhone}</div>
-                </div>
-                
-                <table class="invoice-table">
-                    <thead>
-                        <tr>
-                            <th>SERVICE DESCRIPTION</th>
-                            <th class="text-right">QTY</th>
-                            <th class="text-right">RATE</th>
-                            <th class="text-right">AMOUNT</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${itemsHTML || '<tr><td colspan="4" class="text-center">No services added</td></tr>'}
-                    </tbody>
-                </table>
-                
-                <div class="invoice-totals">
-                    <table class="totals-table">
-                        <tr class="total-row">
-                            <td class="label">TOTAL AMOUNT:</td>
-                            <td class="text-right">₹${subtotal.toFixed(2)}</td>
-                        </tr>
+                    
+                    <div class="invoice-company">
+                        <h3>${companyName}</h3>
+                        <div>${companyAddress}</div>
+                        <div>${companyPhone}</div>
+                    </div>
+                    
+                    <table class="invoice-table">
+                        <thead>
+                            <tr>
+                                <th>SERVICE DESCRIPTION</th>
+                                <th class="text-right">QTY</th>
+                                <th class="text-right">RATE</th>
+                                <th class="text-right">AMOUNT</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${itemsHTML || '<tr><td colspan="4" class="text-center">No services added</td></tr>'}
+                        </tbody>
                     </table>
-                </div>
-                
-                <div class="invoice-footer">
-                    <p>Thank you for choosing our design services.</p>
+                    
+                    <div class="invoice-totals">
+                        <table class="totals-table">
+                            <tr class="total-row">
+                                <td class="label">TOTAL AMOUNT:</td>
+                                <td class="text-right">₹${subtotal.toFixed(2)}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    ${companyUPI ? `
+                    <div class="payment-info">
+                        <h4><i class="fas fa-mobile-alt"></i> Payment Information</h4>
+                        <p><strong>UPI:</strong> 
+                            <a href="${upiPaymentUrl}" class="upi-link">
+                                ${companyUPI} <i class="fas fa-external-link-alt"></i>
+                            </a>
+                        </p>
+                        <p style="margin-top: 10px; font-size: 0.9rem; color: var(--text-grey);">
+                            Click on the UPI ID to make payment
+                        </p>
+                    </div>
+                    ` : ''}
+                    
+                    <div class="invoice-footer">
+                        <p>Thank you for choosing our design services.</p>
+                    </div>
                 </div>
             `;
         }
@@ -616,6 +687,7 @@
             document.getElementById('companyName').value = 'Typixel Designs';
             document.getElementById('companyAddress').value = 'Kotakkal, Kerala';
             document.getElementById('companyPhone').value = '+919072891142';
+            document.getElementById('companyUPI').value = '9072891142@fam';
             
             // Reset dates
             document.getElementById('invoiceDate').valueAsDate = new Date();
