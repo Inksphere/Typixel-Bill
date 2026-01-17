@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- QR Code Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link rel="icon" href="./bill-icon-sign-symbol-logo-free-vector.jpg" type="image/png">
     <style>
         :root {
@@ -223,6 +225,60 @@
             margin-top: 20px;
         }
 
+        /* QR Code Styles */
+        .qr-code-container {
+            margin-top: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .qr-code {
+            padding: 10px;
+            background-color: white;
+            border: 1px solid #ddd;
+            display: inline-block;
+        }
+
+        .qr-code-label {
+            margin-top: 5px;
+            font-size: 0.9rem;
+            color: var(--text-grey);
+        }
+
+        .file-upload {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .file-upload input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-upload label {
+            display: inline-block;
+            padding: 8px 12px;
+            background-color: var(--light-grey);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .file-upload label:hover {
+            background-color: #d0d0d0;
+        }
+
+        .qr-preview {
+            margin-top: 10px;
+            max-width: 150px;
+            max-height: 150px;
+            border: 1px solid var(--light-grey);
+            padding: 5px;
+        }
+
         /* Invoice Preview Styles */
         .invoice-container {
             border: 1px solid var(--light-grey);
@@ -347,6 +403,9 @@
             padding: 15px;
             background-color: var(--light-grey);
             border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .payment-info h4 {
@@ -354,22 +413,20 @@
             color: var(--dark-green);
         }
 
-        .upi-link {
-            color: var(--dark-green);
-            text-decoration: none;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            transition: all 0.2s;
+        .payment-details {
+            flex: 1;
         }
 
-        .upi-link:hover {
-            text-decoration: underline;
+        .qr-code-section {
+            flex: 1;
+            text-align: center;
         }
 
-        .upi-link i {
-            font-size: 1.2rem;
+        .invoice-qr-code {
+            display: inline-block;
+            padding: 10px;
+            background-color: white;
+            border: 1px solid #ddd;
         }
 
         footer {
@@ -409,6 +466,10 @@
             .form-actions {
                 flex-direction: column;
             }
+            
+            .payment-info {
+                flex-direction: column;
+            }
         }
     </style>
 </head>
@@ -442,6 +503,13 @@
                     <div class="form-group">
                         <label for="companyUPI">Send to</label>
                         <input type="text" id="companyUPI" value="9072891142@fam" placeholder="UPI">
+                        <div id="qrCodeOption" class="qr-code-container" style="display: none;">
+                            <div class="file-upload">
+                                <input type="file" id="qrCodeFile" accept="image/*">
+                                <label for="qrCodeFile"><i class="fas fa-upload"></i> Upload QR Code</label>
+                            </div>
+                            <div id="qrCodePreviewContainer"></div>
+                        </div>
                     </div>
                 </div>
                 
@@ -497,6 +565,10 @@
         </div>
     </footer>
 
+    <!-- Hidden divs for QR code generation -->
+    <div id="qrCode9072891142" style="display: none;"></div>
+    <div id="qrCode8606218631" style="display: none;"></div>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Set today's date as default
@@ -509,6 +581,10 @@
             
             // Generate a random bill number
             document.getElementById('invoiceNumber').value = 'BILL-' + Math.floor(Math.random() * 10000);
+            
+            // Generate QR codes for specific UPI IDs
+            generateQRCode('qrCode9072891142', 'upi://pay?pa=9072891142@fam&pn=Typixel%20Designs');
+            generateQRCode('qrCode8606218631', 'upi://pay?pa=8606218631@fam&pn=Typixel%20Designs');
             
             // Add item button functionality
             document.getElementById('addItemBtn').addEventListener('click', addItem);
@@ -534,6 +610,12 @@
                 input.addEventListener('input', updateInvoicePreview);
             });
             
+            // Handle UPI input change
+            document.getElementById('companyUPI').addEventListener('input', handleUPIChange);
+            
+            // Handle QR code file upload
+            document.getElementById('qrCodeFile').addEventListener('change', handleQRCodeUpload);
+            
             // Reset button functionality
             document.getElementById('resetBtn').addEventListener('click', resetForm);
             
@@ -546,6 +628,49 @@
             // Initial preview update
             updateInvoicePreview();
         });
+
+        function generateQRCode(elementId, upiString) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = '';
+            new QRCode(element, {
+                text: upiString,
+                width: 150,
+                height: 150,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        }
+
+        function handleUPIChange() {
+            const upiInput = document.getElementById('companyUPI');
+            const qrCodeOption = document.getElementById('qrCodeOption');
+            
+            // Check if UPI is one of the predefined ones
+            if (upiInput.value === '9072891142@fam' || upiInput.value === '8606218631@fam') {
+                qrCodeOption.style.display = 'none';
+            } else if (upiInput.value) {
+                // Show QR code upload option for other UPI IDs
+                qrCodeOption.style.display = 'block';
+            } else {
+                qrCodeOption.style.display = 'none';
+            }
+            
+            updateInvoicePreview();
+        }
+
+        function handleQRCodeUpload(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const previewContainer = document.getElementById('qrCodePreviewContainer');
+                    previewContainer.innerHTML = `<img src="${event.target.result}" class="qr-preview" alt="QR Code Preview">`;
+                    updateInvoicePreview();
+                };
+                reader.readAsDataURL(file);
+            }
+        }
 
         function addItem() {
             const itemsContainer = document.getElementById('itemsContainer');
@@ -616,8 +741,40 @@
             const formattedInvoiceDate = invoiceDate ? new Date(invoiceDate).toLocaleDateString() : '';
             const formattedDueDate = dueDate ? new Date(dueDate).toLocaleDateString() : '';
             
-            // Create UPI payment URL
-            const upiPaymentUrl = companyUPI ? `upi://pay?pa=${companyUPI}&pn=${encodeURIComponent(companyName)}&am=${subtotal.toFixed(2)}&cu=INR` : '';
+            // Determine QR code to show
+            let qrCodeHTML = '';
+            if (companyUPI === '9072891142@fam') {
+                qrCodeHTML = `
+                    <div class="qr-code-section">
+                        <div class="invoice-qr-code">
+                            ${document.getElementById('qrCode9072891142').innerHTML}
+                        </div>
+                        <div class="qr-code-label">Scan to pay</div>
+                    </div>
+                `;
+            } else if (companyUPI === '8606218631@fam') {
+                qrCodeHTML = `
+                    <div class="qr-code-section">
+                        <div class="invoice-qr-code">
+                            ${document.getElementById('qrCode8606218631').innerHTML}
+                        </div>
+                        <div class="qr-code-label">Scan to pay</div>
+                    </div>
+                `;
+            } else if (companyUPI) {
+                // Check if a custom QR code has been uploaded
+                const qrPreview = document.querySelector('#qrCodePreviewContainer img');
+                if (qrPreview) {
+                    qrCodeHTML = `
+                        <div class="qr-code-section">
+                            <div class="invoice-qr-code">
+                                <img src="${qrPreview.src}" width="150" height="150" alt="QR Code">
+                            </div>
+                            <div class="qr-code-label">Scan to pay</div>
+                        </div>
+                    `;
+                }
+            }
             
             // Update preview HTML
             preview.innerHTML = `
@@ -663,15 +820,11 @@
                     
                     ${companyUPI ? `
                     <div class="payment-info">
-                        <h4><i class="fas fa-mobile-alt"></i> Payment Information</h4>
-                        <p><strong>UPI:</strong> 
-                            <a href="${upiPaymentUrl}" class="upi-link">
-                                ${companyUPI} <i class="fas fa-external-link-alt"></i>
-                            </a>
-                        </p>
-                        <p style="margin-top: 10px; font-size: 0.9rem; color: var(--text-grey);">
-                            Click on the UPI ID to make payment
-                        </p>
+                        <div class="payment-details">
+                            <h4><i class="fas fa-mobile-alt"></i> Payment Information</h4>
+                            <p><strong>UPI:</strong> ${companyUPI}</p>
+                        </div>
+                        ${qrCodeHTML}
                     </div>
                     ` : ''}
                     
@@ -709,6 +862,10 @@
                     <button class="btn-remove-item"><i class="fas fa-trash"></i></button>
                 </div>
             `;
+            
+            // Reset QR code upload
+            document.getElementById('qrCodePreviewContainer').innerHTML = '';
+            document.getElementById('qrCodeOption').style.display = 'none';
             
             // Update preview
             updateInvoicePreview();
